@@ -32,7 +32,12 @@ type FormData = {
   autres: string;
 };
 
-type UploadedFile = { name: string; size: number; preview?: string };
+type UploadedFile = {
+  file: File;
+  name: string;
+  size: number;
+  preview?: string;
+};
 
 const STEPS = [
   { id: 1, label: "Infos" },
@@ -87,24 +92,27 @@ export default function QuestionnairePage() {
   };
 
   const handleFileChange = useCallback(
-    (
-      e: React.ChangeEvent<HTMLInputElement>,
-      setter: React.Dispatch<React.SetStateAction<UploadedFile[]>>,
-      current: UploadedFile[]
-    ) => {
-      const files = Array.from(e.target.files || []);
-      const remaining = 5 - current.length;
-      const toAdd = files.slice(0, remaining).map((f) => ({
-        name: f.name,
-        size: f.size,
-        preview: f.type.startsWith("image/")
-          ? URL.createObjectURL(f)
-          : undefined,
-      }));
-      setter((prev) => [...prev, ...toAdd]);
-    },
-    []
-  );
+  (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: React.Dispatch<React.SetStateAction<UploadedFile[]>>,
+    current: UploadedFile[]
+  ) => {
+    const files = Array.from(e.target.files || []);
+    const remaining = 5 - current.length;
+
+    const toAdd = files.slice(0, remaining).map((f) => ({
+      file: f,
+      name: f.name,
+      size: f.size,
+      preview: f.type.startsWith("image/")
+        ? URL.createObjectURL(f)
+        : undefined,
+    }));
+
+    setter((prev) => [...prev, ...toAdd]);
+  },
+  []
+);
 
   const removeFile = (
     index: number,
@@ -113,56 +121,94 @@ export default function QuestionnairePage() {
     setter((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const onSubmit = async (data: FormData) => {
-    setSubmitting(true);
-    setSubmitError("");
-    try {
-      const photoUrls: string[] = [];
-      const logoUrls: string[] = [];
+const onSubmit = async (data: FormData) => {
+  console.log("PHOTOS LENGTH:", photos.length);
+  console.log("PHOTOS:", photos);
+  console.log("LOGOS LENGTH:", logos.length);
+  console.log("LOGOS:", logos);
+  setSubmitting(true);
+  setSubmitError("");
 
-      if (photoInputRef.current?.files?.length) {
-        const fd = new FormData();
-        Array.from(photoInputRef.current.files).forEach((f) =>
-          fd.append("files", f)
-        );
-        const res = await fetch("/api/upload", { method: "POST", body: fd });
-        const json = await res.json();
-        photoUrls.push(...(json.urls || []));
-      }
+  try {
+    const photoUrls: string[] = [];
+    const logoUrls: string[] = [];
 
-      if (logoInputRef.current?.files?.length) {
-        const fd = new FormData();
-        Array.from(logoInputRef.current.files).forEach((f) =>
-          fd.append("files", f)
-        );
-        const res = await fetch("/api/upload", { method: "POST", body: fd });
-        const json = await res.json();
-        logoUrls.push(...(json.urls || []));
-      }
+    // Upload des photos
+    if (photos.length > 0) {
+      const fd = new FormData();
 
-      const payload = {
-        ...data,
-        photosUrls: photoUrls,
-        logoUrls: logoUrls,
-      };
-
-      const res = await fetch("/api/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      photos.forEach((item) => {
+        fd.append("files", item.file);
       });
 
-      if (!res.ok) throw new Error("Erreur lors de l'envoi");
-      setSubmitted(true);
-    } catch (err) {
-      setSubmitError(
-        "Une erreur est survenue. Veuillez réessayer ou me contacter directement."
-      );
-      console.error(err);
-    } finally {
-      setSubmitting(false);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: fd,
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Erreur upload photos : ${errorText}`);
+      }
+
+      const json = await res.json();
+      photoUrls.push(...(json.urls || []));
     }
-  };
+
+    // Upload des logos
+    if (logos.length > 0) {
+      const fd = new FormData();
+
+      logos.forEach((item) => {
+        fd.append("files", item.file);
+      });
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: fd,
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Erreur upload logos : ${errorText}`);
+      }
+
+      const json = await res.json();
+      logoUrls.push(...(json.urls || []));
+    }
+
+    const payload = {
+      ...data,
+      photosUrls: photoUrls,
+      logoUrls: logoUrls,
+    };
+
+    const res = await fetch("/api/submit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Erreur submit : ${errorText}`);
+    }
+
+    setSubmitted(true);
+  } catch (err) {
+    console.error(err);
+
+    setSubmitError(
+      err instanceof Error
+        ? err.message
+        : "Une erreur est survenue. Veuillez réessayer ou me contacter directement."
+    );
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   if (submitted) {
     return <SuccessPage />;
