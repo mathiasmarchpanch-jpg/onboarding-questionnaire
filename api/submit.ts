@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { onboardingSubmissions } from "../db/schema";
+import { onboardingSubmissions } from "../db/schema.ts";
 
 const connectionString = process.env.DATABASE_URL;
 
