@@ -1,21 +1,21 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { onboardingSubmissions } from "../db/schema.ts";
-
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new Error("DATABASE_URL is missing");
-}
-
-const client = postgres(connectionString, {
-  ssl: "require",
-});
-
-const db = drizzle(client);
+import { onboardingSubmissions } from "./schema";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    if (!process.env.DATABASE_URL) {
+    return res.status(500).json({
+      ok: false,
+      error: "DATABASE_URL is missing in Vercel",
+    });
+  }
+
+  const client = postgres(process.env.DATABASE_URL, {
+    ssl: "require",
+  });
+
+  const db = drizzle(client);
   if (req.method !== "POST") {
     return res.status(405).json({
       ok: false,
