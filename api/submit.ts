@@ -1,3 +1,70 @@
+import { put } from "@vercel/blob";
+import formidable from "formidable";
+import fs from "fs";
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+function getField(fields: formidable.Fields, key: string): string {
+  const value = fields[key];
+
+  if (Array.isArray(value)) {
+    return value[0] || "";
+  }
+
+  return value ? String(value) : "";
+}
+
+function getFiles(files: formidable.Files, key: string): formidable.File[] {
+  const value = files[key];
+
+  if (!value) return [];
+
+  return Array.isArray(value) ? value : [value];
+}
+
+function parseForm(
+  req: VercelRequest
+): Promise<{ fields: formidable.Fields; files: formidable.Files }> {
+  const form = formidable({
+    multiples: true,
+    maxFileSize: 10 * 1024 * 1024,
+  });
+
+  return new Promise((resolve, reject) => {
+    form.parse(req, (err, fields, files) => {
+      if (err) reject(err);
+      else resolve({ fields, files });
+    });
+  });
+}
+
+async function uploadFilesToBlob(
+  files: formidable.File[],
+  folder: string
+): Promise<string[]> {
+  const urls: string[] = [];
+
+  for (const file of files) {
+    const fileBuffer = fs.readFileSync(file.filepath);
+    const safeName = file.originalFilename || `file-${Date.now()}`;
+
+    const blob = await put(
+      `onboarding/${folder}/${Date.now()}-${safeName}`,
+      fileBuffer,
+      {
+        access: "public",
+        contentType: file.mimetype || "application/octet-stream",
+      }
+    );
+
+    urls.push(blob.url);
+  }
+
+  return urls;
+}
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -74,8 +141,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const body = req.body;
+const { fields, files } = await parseForm(req);
 
+const photoFiles = getFiles(files, "photos");
+const logoFiles = getFiles(files, "logos");
+
+const photosUrls = await uploadFilesToBlob(photoFiles, "photos");
+const logoUrls = await uploadFilesToBlob(logoFiles, "logos");
+
+const body = {
+  prenom: getField(fields, "prenom"),
+  nom: getField(fields, "nom"),
+  email: getField(fields, "email"),
+  telephone: getField(fields, "telephone"),
+  poste: getField(fields, "poste"),
+  entreprise: getField(fields, "entreprise"),
+
+  activitePrincipale: getField(fields, "activitePrincipale"),
+  offre: getField(fields, "offre"),
+  differenciateur: getField(fields, "differenciateur"),
+
+  objectifLinkedin: getField(fields, "objectifLinkedin"),
+  ciblePrecise: getField(fields, "ciblePrecise"),
+  problemesCible: getField(fields, "problemesCible"),
+
+  aimeProfil: getField(fields, "aimeProfil"),
+  changeProfil: getField(fields, "changeProfil"),
+
+  imageRenvoyer: getField(fields, "imageRenvoyer"),
+  elementsBanniere: getField(fields, "elementsBanniere"),
+  couleurs: getField(fields, "couleurs"),
+  motsCles: getField(fields, "motsCles"),
+
+  profilsLinkedin: getField(fields, "profilsLinkedin"),
+  avisClient: getField(fields, "avisClient"),
+  siteWeb: getField(fields, "siteWeb"),
+  police: getField(fields, "police"),
+  signeRecurrent: getField(fields, "signeRecurrent"),
+
+  refus: getField(fields, "refus"),
+  obligatoires: getField(fields, "obligatoires"),
+  autres: getField(fields, "autres"),
+
+  photosUrls,
+  logoUrls,
+};
     const inserted = await db
       .insert(onboardingSubmissions)
       .values({

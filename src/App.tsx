@@ -122,73 +122,29 @@ export default function QuestionnairePage() {
   };
 
 const onSubmit = async (data: FormData) => {
-  console.log("PHOTOS LENGTH:", photos.length);
-  console.log("PHOTOS:", photos);
-  console.log("LOGOS LENGTH:", logos.length);
-  console.log("LOGOS:", logos);
   setSubmitting(true);
   setSubmitError("");
 
   try {
-    const photoUrls: string[] = [];
-    const logoUrls: string[] = [];
+    const fd = new window.FormData();
 
-    // Upload des photos
-    if (photos.length > 0) {
-      const fd = new FormData();
-
-      photos.forEach((item) => {
-        fd.append("files", item.file);
-      });
-
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: fd,
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Erreur upload photos : ${errorText}`);
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        fd.append(key, String(value));
       }
+    });
 
-      const json = await res.json();
-      photoUrls.push(...(json.urls || []));
-    }
+    photos.forEach((item) => {
+      fd.append("photos", item.file);
+    });
 
-    // Upload des logos
-    if (logos.length > 0) {
-      const fd = new FormData();
-
-      logos.forEach((item) => {
-        fd.append("files", item.file);
-      });
-
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: fd,
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Erreur upload logos : ${errorText}`);
-      }
-
-      const json = await res.json();
-      logoUrls.push(...(json.urls || []));
-    }
-
-    const payload = {
-      ...data,
-      photosUrls: photoUrls,
-      logoUrls: logoUrls,
-    };
+    logos.forEach((item) => {
+      fd.append("logos", item.file);
+    });
 
     const res = await fetch("/api/submit", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+      body: fd,
     });
 
     if (!res.ok) {
