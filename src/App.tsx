@@ -1,5 +1,6 @@
 "use client";
 
+import { upload } from "@vercel/blob/client";
 import { useState, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 
@@ -126,25 +127,50 @@ const onSubmit = async (data: FormData) => {
   setSubmitError("");
 
   try {
-    const fd = new window.FormData();
+    const photosUrls: string[] = [];
+    const logoUrls: string[] = [];
 
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        fd.append(key, String(value));
-      }
-    });
+    // 1. Upload direct des photos/documents vers Vercel Blob
+    for (const item of photos) {
+      const blob = await upload(
+        `onboarding/photos/${Date.now()}-${item.name}`,
+        item.file,
+        {
+          access: "public",
+          handleUploadUrl: "/api/blob",
+        }
+      );
 
-    photos.forEach((item) => {
-      fd.append("photos", item.file);
-    });
+      photosUrls.push(blob.url);
+    }
 
-    logos.forEach((item) => {
-      fd.append("logos", item.file);
-    });
+    // 2. Upload direct des logos vers Vercel Blob
+    for (const item of logos) {
+      const blob = await upload(
+        `onboarding/logos/${Date.now()}-${item.name}`,
+        item.file,
+        {
+          access: "public",
+          handleUploadUrl: "/api/blob",
+        }
+      );
+
+      logoUrls.push(blob.url);
+    }
+
+    // 3. Envoi des réponses + liens des fichiers à /api/submit
+    const payload = {
+      ...data,
+      photosUrls,
+      logoUrls,
+    };
 
     const res = await fetch("/api/submit", {
       method: "POST",
-      body: fd,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
