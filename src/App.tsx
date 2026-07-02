@@ -63,8 +63,8 @@ export default function QuestionnairePage() {
 
   const {
     register,
-    handleSubmit,
     trigger,
+    getValues,
     formState: { errors },
   } = useForm<FormData>({ mode: "onBlur" });
 
@@ -192,6 +192,17 @@ const onSubmit = async (data: FormData) => {
   }
 };
 
+  const handleFinalSubmit = async () => {
+    const valid = await trigger(stepFields[STEPS.length]);
+
+    if (!valid) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    await onSubmit(getValues());
+  };
+
   if (submitted) {
     return <SuccessPage />;
   }
@@ -242,14 +253,49 @@ const onSubmit = async (data: FormData) => {
             <div>
               <div
                 style={{
-                  fontSize: "14px",
-                  fontWeight: "700",
-                  color: "#111827",
-                  fontFamily: "Space Grotesk, sans-serif",
-                  letterSpacing: "-0.01em",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
                 }}
               >
-                Autorité Signal™
+                <div
+                  aria-hidden="true"
+                  style={{
+                    width: "20px",
+                    height: "20px",
+                    borderRadius: "6px",
+                    background: "rgba(37,99,235,0.08)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#2563EB"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
+                    <path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14z" />
+                  </svg>
+                </div>
+                <div
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: "700",
+                    color: "#111827",
+                    fontFamily: "Space Grotesk, sans-serif",
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  Bienvenue dans votre transformation LinkedIn
+                </div>
               </div>
               <div style={{ fontSize: "11px", color: "#9CA3AF" }}>
                 Questionnaire Onboarding
@@ -358,7 +404,7 @@ const onSubmit = async (data: FormData) => {
       <main
         style={{ maxWidth: "760px", margin: "0 auto", padding: "32px 24px 80px" }}
       >
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={(e) => e.preventDefault()}>
           {/* STEP 1 — Infos personnelles */}
           {currentStep === 1 && (
             <div className="animate-fadeInUp">
@@ -1008,7 +1054,8 @@ const onSubmit = async (data: FormData) => {
               </button>
             ) : (
               <button
-                type="submit"
+                type="button"
+                onClick={handleFinalSubmit}
                 disabled={submitting}
                 style={{
                   display: "flex",
@@ -1474,7 +1521,7 @@ function SuccessPage() {
             color: "#9CA3AF",
           }}
         >
-          <span style={{ color: "#2563EB", fontWeight: "600" }}>Autorité Signal™</span>
+          <span style={{ color: "#2563EB", fontWeight: "600" }}>Bienvenue dans votre transformation LinkedIn</span>
           {" "}— Aligne ta valeur perçue avec ton niveau réel.
         </div>
       </div>
